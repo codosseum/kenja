@@ -1,6 +1,5 @@
 from __future__ import absolute_import
 import os
-from kenja_parser.gittree import parse_and_write_gittree
 from subprocess import (
     Popen,
     PIPE,
@@ -87,7 +86,8 @@ class JavaConsumer(Process):
             blob_hexsha = self.blobs_queue.get()
             if blob_hexsha is None:
                 break
-            parser_process.stdin.write(blob_hexsha + '\n')
+            line = blob_hexsha + '\n'
+            parser_process.stdin.write(line.encode('utf-8'))
             self.blobs_queue.task_done()
 
         parser_process.communicate()
@@ -131,43 +131,7 @@ class JavaMultipleParserExecutor:
         self.closed = True
 
 
-class PythonParserExecutor(ParserExecutor):
-    def parse_blob(self, blob):
-        src = blob.data_stream.read()
-
-        if(self.closed):
-            self.pool = Pool(self.processes)
-            self.closed = False
-
-        output_path = os.path.join(self.output_dir, blob.hexsha)
-        self.pool.apply_async(parse_and_write_gittree, args=[src, output_path])
-
-
-class CSharpParserExecutor(ParserExecutor):
-    file_path = 'csharp/kenja-csharp-parser.exe'
-    parser_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', file_path)
-
-    def make_cmd(self, hexsha):
-        cmd = ["mono",
-               self.parser_path,
-               os.path.join(self.output_dir, hexsha)
-               ]
-        return cmd
-
-
-class RubyParserExecutor(ParserExecutor):
-
-    def make_cmd(self, hexsha):
-        cmd = ["parse_ruby",
-               os.path.join(self.output_dir, hexsha)
-               ]
-        return cmd
-
-
-blob_parsers = {'java': JavaMultipleParserExecutor,
-                'python': PythonParserExecutor,
-                'csharp': CSharpParserExecutor,
-                'ruby': RubyParserExecutor}
+blob_parsers = {'java': JavaMultipleParserExecutor}
 
 
 class BlobParser:
